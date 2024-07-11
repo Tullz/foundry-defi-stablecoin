@@ -8,6 +8,8 @@ import {DSCEngine} from "../../src/DSCEngine.sol";
 import {DecentralisedStableCoin} from "../../src/DecentralisedStableCoin.sol";
 import {HelperConfig} from "../../script/HelperConfig.s.sol";
 import {ERC20Mock} from "@openzeppelin/contracts/mocks/token/ERC20Mock.sol";
+import {console} from "forge-std/console.sol";
+import {MockV3Aggregator} from "../../test/mocks/MockV3Aggregator.sol";
 
 contract DSCEngineTest is Test {
     DeployDSC deployer;
@@ -23,7 +25,7 @@ contract DSCEngineTest is Test {
     uint256 public constant AMOUNT_COLLATERAL = 10 ether;
     uint256 public constant STARTING_ERC20_BALANCE = 10 ether;
     uint256 public constant DSC_TO_MINT = 1 ether;
-    uint256 public constant TOO_MUCH_DSC_TO_MINT = 1000 ether;
+    uint256 public constant MAX_BAL = 100 ether;
 
     function setUp() public {
         deployer = new DeployDSC();
@@ -117,9 +119,15 @@ contract DSCEngineTest is Test {
     }
 
     function testMintRevertsOnBadHealthFactor() public depositedCollateral {
+        (, int256 price,,,) = MockV3Aggregator(ethUsdPriceFeed).latestRoundData();
+        uint256 amountToMint =
+            ((uint256(price) * engine.getAdditionalFeedPrecision()) * AMOUNT_COLLATERAL) / engine.getPrecision();
+
         vm.startPrank(USER);
-        vm.expectRevert(DSCEngine.DSCEngine__BreaksHealthFactor.selector);
-        engine.mintDsc(TOO_MUCH_DSC_TO_MINT);
+        uint256 expectedHealthFactor =
+            engine.calculateHealthFactor(amountToMint, engine.getUsdValue(weth, AMOUNT_COLLATERAL));
+        vm.expectRevert(abi.encodeWithSelector(DSCEngine.DSCEngine__BreaksHealthFactor.selector, expectedHealthFactor));
+        engine.mintDsc(amountToMint);
         vm.stopPrank();
     }
 }
