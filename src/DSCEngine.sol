@@ -6,6 +6,7 @@ import {DecentralisedStableCoin} from "./DecentralisedStableCoin.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {AggregatorV3Interface} from "@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol";
+import {console} from "forge-std/console.sol";
 
 /**
  * @title DSCEngine
@@ -167,7 +168,9 @@ contract DSCEngine is ReentrancyGuard {
      * @notice they must have more collateral value than the minimum threshold
      */
     function mintDsc(uint256 amountDscToMint) public moreThanZero(amountDscToMint) nonReentrant {
+        console.log(_healthFactor(msg.sender));
         s_dscMinted[msg.sender] += amountDscToMint;
+        console.log(_healthFactor(msg.sender));
         _revertIfHealthFactorIsBroken(msg.sender);
         bool minted = i_dsc.mint(msg.sender, amountDscToMint);
         if (!minted) {
@@ -277,6 +280,9 @@ contract DSCEngine is ReentrancyGuard {
      */
     function _healthFactor(address user) private view returns (uint256) {
         (uint256 totalDscMinted, uint256 collateralValueInUsd) = _getAccountInformation(user);
+        if (totalDscMinted == 0) {
+            return type(uint256).max;
+        }
         uint256 collateralAdjustedForThreshold = (collateralValueInUsd * LIQUIDATION_THRESHOLD) / LIQUIDATION_PRECISION;
         return (collateralAdjustedForThreshold * PRECISION) / totalDscMinted;
         //$1000 eth / 100 DSC
@@ -323,5 +329,13 @@ contract DSCEngine is ReentrancyGuard {
         (, int256 price,,,) = priceFeed.latestRoundData();
         // ($10e18 * 1e18) / ($2000e8 * 1e10)
         return (usdAmountInWei * PRECISION) / (uint256(price) * ADDITIONAL_FEED_PRECISION);
+    }
+
+    function getAccountInformation(address user)
+        external
+        view
+        returns (uint256 totalDscMinted, uint256 collateralValueInUsd)
+    {
+        (totalDscMinted, collateralValueInUsd) = _getAccountInformation(user);
     }
 }
