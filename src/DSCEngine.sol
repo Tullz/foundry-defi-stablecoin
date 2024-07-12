@@ -224,6 +224,8 @@ contract DSCEngine is ReentrancyGuard {
         _burnDsc(user, msg.sender, debtToCover);
 
         uint256 endingUserHealthFactor = _healthFactor(user);
+        console.log("Starting User Health Factor: %s", startingUserHealthFactor);
+        console.log("Ending User Health Factor: %s", endingUserHealthFactor);
         if (endingUserHealthFactor <= startingUserHealthFactor) {
             revert DSCEngine__HealthFactorNotImproved();
         }
@@ -348,5 +350,9 @@ contract DSCEngine is ReentrancyGuard {
 
     function getPrecision() external pure returns (uint256) {
         return PRECISION;
+    }
+
+    function getHealthFactor(address user) external view returns (uint256) {
+        return _healthFactor(user);
     }
 }
