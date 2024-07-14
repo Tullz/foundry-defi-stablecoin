@@ -13,6 +13,10 @@ import {MockV3Aggregator} from "../../test/mocks/MockV3Aggregator.sol";
 //import {MockFailedTransferFrom} from "../../test/mocks/MockFailedTransferFrom.sol";
 
 contract DSCEngineTest is Test {
+    event CollateralRedeemed(
+        address indexed redeemedFrom, address indexed redeemedTo, address indexed token, uint256 amount
+    );
+
     DeployDSC deployer;
     DecentralisedStableCoin dsc;
     DSCEngine engine;
@@ -229,6 +233,14 @@ contract DSCEngineTest is Test {
         vm.startPrank(USER);
         vm.expectRevert(DSCEngine.DSCEngine__NeedsMoreThanZero.selector);
         engine.redeemCollateral(weth, 0);
+        vm.stopPrank();
+    }
+
+    function testRedeemCollateralEmitsEvent() public depositedCollateral {
+        vm.startPrank(USER);
+        vm.expectEmit(true, true, true, true, address(engine));
+        emit CollateralRedeemed(USER, USER, weth, SMALL_COLLATERAL);
+        engine.redeemCollateral(weth, SMALL_COLLATERAL);
         vm.stopPrank();
     }
 
